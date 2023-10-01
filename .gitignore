@@ -1,0 +1,16 @@
+.ipynb_checkpoints/*
+csvs/*
+!csvs/.gitkeep
+
+ens_checkpoints/*
+!ens_checkpoints/.gitkeep
+
+model_outs/*
+!model_outs/.gitkeep
+
+negatives/*
+!negatives/.gitkeep
+
+figures/*
+!figures/.gitkeep
+
