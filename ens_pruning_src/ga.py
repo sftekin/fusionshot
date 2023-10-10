@@ -1,7 +1,9 @@
 import pygad
 import numpy as np
 import os
-from helper import load_predictions, calculate_errors, calc_generalized_div, voting
+from helper import load_predictions, calculate_errors
+from diversity_stats import calc_generalized_div
+from ensemble_methods import voting
 import time
 
 

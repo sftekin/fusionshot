@@ -1,0 +1,5 @@
+torch
+qpth
+cvxpy
+opencv-python
+pygad
