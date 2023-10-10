@@ -4,11 +4,11 @@ import glob
 import itertools
 import numpy as np
 import scipy
-import torch.nn
+import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from train_ensemble import MLP, modify_save_path, load_logits, create_data, test_loop
-from ensemble_methods import voting
+from ens_pruning_src.ensemble_methods import voting
 import seaborn as sns
 import matplotlib.pyplot as plt
 

@@ -14,3 +14,7 @@ negatives/*
 figures/*
 !figures/.gitkeep
 
+base_model_src/checkpoints/*
+base_model_src/filelists/CUB/images/*
+base_model_src/filelists/miniImagenet/images/*
+!base_model_src/*.py
