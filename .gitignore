@@ -2,19 +2,10 @@
 csvs/*
 !csvs/.gitkeep
 
-ens_checkpoints/*
-!ens_checkpoints/.gitkeep
-
-model_outs/*
-!model_outs/.gitkeep
-
-negatives/*
-!negatives/.gitkeep
-
-figures/*
-!figures/.gitkeep
-
 base_model_src/checkpoints/*
+!base_model_src/checkpoints/.gitkeep
+!base_model_src/filelists/.gitkeep
+
 base_model_src/filelists/CUB/images/*
 base_model_src/filelists/miniImagenet/images/*
 !base_model_src/*.py
