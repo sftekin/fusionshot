@@ -2,9 +2,9 @@ import os
 import json
 import pandas as pd
 
-train_df = pd.read_csv("train.csv")
-val_df = pd.read_csv("val.csv")
-test_df = pd.read_csv("test.csv")
+train_df = pd.read_csv("split/train.csv")
+val_df = pd.read_csv("split/val.csv")
+test_df = pd.read_csv("split/test.csv")
 
 label_names = []
 for set_df in [train_df, val_df, test_df]:
