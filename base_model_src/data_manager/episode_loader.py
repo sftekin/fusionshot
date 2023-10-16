@@ -6,7 +6,7 @@ import numpy as np
 import pickle as pkl
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
-from data_manager.transform_loader import TransformLoader
+from base_model_src.data_manager.transform_loader import TransformLoader
 
 
 class EpisodeSet(Dataset):

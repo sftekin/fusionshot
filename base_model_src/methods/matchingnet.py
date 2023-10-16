@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import numpy as np
-from methods.meta_template import MetaTemplate
-import utils
+from base_model_src.methods.meta_template import MetaTemplate
+
 
 
 class MatchingNet(MetaTemplate):

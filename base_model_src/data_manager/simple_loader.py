@@ -3,7 +3,7 @@ import json
 import torch
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
-from data_manager.transform_loader import TransformLoader
+from transform_loader import TransformLoader
 
 
 class DatasetIM(Dataset):

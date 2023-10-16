@@ -1,25 +1,22 @@
 import os
 import time
-import configs
 import torch
 import numpy as np
 import random
 import pickle as pkl
 import argparse
-from io_utils import model_dict, get_best_file
-from methods.protonet import ProtoNet
-from methods.matchingnet import MatchingNet
-from methods.relationnet import RelationNet
-from methods.maml import MAML
-import backbone
-from methods.deep_emd import DeepEMD
-from methods.emd_utils import emd_load_model, get_deep_emd_args, deep_emd_episode
+from methods.emd_utils import deep_emd_episode
 from methods.simpleshot_utils import ss_step, ss_episode
 from data_manager.episode_loader import get_episode_loader
-import methods.ss_backbones as ss_backbones
+from utils import load_model, get_image_size
 import torch.multiprocessing
 
 torch.multiprocessing.set_sharing_strategy('file_system')
+CUR_PATH = os.path.dirname(os.path.abspath(__file__))
+DATA_PATHS = {
+    "CUB": f'{CUR_PATH}/filelists/CUB/',
+    "miniImagenet": f"{CUR_PATH}/filelists/miniImagenet/"
+}
 
 
 def infer(model, loader, mode, method, model_name, n_query, n_way, n_shot, **kwargs):
@@ -73,7 +70,7 @@ def infer(model, loader, mode, method, model_name, n_query, n_way, n_shot, **kwa
     acc_std = np.std(acc_all)
     print(f'{mode}->{len(loader)} Acc = {acc_mean:.2f} +- {1.96 * acc_std / np.sqrt(len(loader)):.2f}')
 
-    model_outs_dir = os.path.join(configs.save_dir, "inference", kwargs["dataset_name"], "model_outs", method)
+    model_outs_dir = os.path.join(CUR_PATH, "inference_out", kwargs["dataset_name"], "model_outs", method)
     if not os.path.exists(model_outs_dir):
         os.makedirs(model_outs_dir)
 
@@ -105,96 +102,16 @@ def calc_model_size(model):
 
 def run(method, dataset_name, class_type, ep_num, model_name,
         n_query, n_way, n_shot, aug_used=False, cross=False):
-    base_file = configs.data_dir[dataset_name] + f'{class_type}.json'
+    base_file = DATA_PATHS[dataset_name] + f'{class_type}.json'
 
-    if method == "DeepEMD":
-        image_size = 84
-    elif "simpleshot" in method:
-        if model_name.lower() in ["conv4", "conv6"]:
-            image_size = 84
-        else:
-            image_size = 96
-    else:
-        if "Conv" in model_name:
-            image_size = 84
-        else:
-            image_size = 224
+    image_size = get_image_size(method, model_name)
 
     loader = get_episode_loader(meta_file_path=base_file, image_size=image_size, n_episodes=ep_num,
                                 augmentation=False, n_way=n_way, n_shot=n_shot, n_query=n_query,
                                 num_workers=8, load_sampler_indexes=True, dataset_name=dataset_name)
 
-    if cross:
-        trained_dataset = "miniImagenet"
-    else:
-        trained_dataset = dataset_name
-
-
-    if method in ['relationnet', 'relationnet_softmax']:
-        if 'Conv4' in model_name:
-            feature_model = backbone.Conv4NP
-        elif 'Conv6' in model_name:
-            feature_model = backbone.Conv6NP
-        else:
-            feature_model = lambda: model_dict[model_name](flatten=False)
-        loss_type = 'mse' if method == 'relationnet' else 'softmax'
-
-        model = RelationNet(feature_model, loss_type=loss_type, n_way=n_way, n_support=n_shot)
-    elif method in ['maml', 'maml_approx']:
-        backbone.ConvBlock.maml = True
-        backbone.SimpleBlock.maml = True
-        backbone.BottleneckBlock.maml = True
-        backbone.ResNet.maml = True
-        model = MAML(model_dict[model_name], approx=(method == 'maml_approx'), n_way=n_way, n_support=n_shot)
-    elif method == "protonet":
-        model = ProtoNet(model_dict[model_name], n_way=n_way, n_support=n_shot)
-    elif method == "matchingnet":
-        model = MatchingNet(model_dict[model_name], n_way=n_way, n_support=n_shot)
-    elif method == "DeepEMD":
-        deep_emd_args = get_deep_emd_args(way=n_way, shot=n_shot, query=n_query)
-        model = DeepEMD(args=deep_emd_args)
-        model = model.cuda()
-    elif "simpleshot" in method:
-        bb_model = model_name.lower()
-        bb_mapper = {
-            "conv4": ss_backbones.conv4,
-            "conv6": ss_backbones.conv6,
-            "resnet10": ss_backbones.resnet10,
-            "resnet18": ss_backbones.resnet18,
-            "resnet34": ss_backbones.resnet34,
-            "resnet50": ss_backbones.resnet50,
-            "wideres": ss_backbones.wideres,
-            "densenet121": ss_backbones.densenet121
-        }
-        if cross:
-            trained_dataset = "miniImagenet"
-        else:
-            trained_dataset = dataset_name
-        num_classes = 100 if trained_dataset == "CUB" else 64
-        model = bb_mapper[bb_model](num_classes=num_classes, remove_linear=False)
-        model = torch.nn.DataParallel(model).cuda()
-    else:
-        raise ValueError
-
-    if method == "DeepEMD":
-        model = emd_load_model(model, dir=f"{configs.save_dir}/checkpoints"
-                                          f"/{trained_dataset}/DeepEMD/{n_shot}shot-{n_way}way/max_acc.pth", mode="cuda")
-    elif "simpleshot" in method:
-        save_path = f"{configs.save_dir}/checkpoints/{trained_dataset}/SimpleShot/{bb_model}/checkpoint.pth.tar"
-        tmp = torch.load(save_path)
-        model.load_state_dict(tmp["state_dict"])
-    else:
-        checkpoint_dir = '%s/checkpoints/%s/%s_%s' % (configs.save_dir, trained_dataset, model_name, method)
-        if aug_used:
-            checkpoint_dir += "_aug"
-        checkpoint_dir += '_%dway_%dshot' % (n_way, n_shot)
-
-        modelfile = get_best_file(checkpoint_dir)
-
-        model = model.cuda()
-        tmp = torch.load(modelfile)
-        model.load_state_dict(tmp['state'])
-        # model.eval()
+    model = load_model(method=method, model_name=model_name, n_way=n_way, n_shot=n_shot, n_query=n_query,
+                       dataset_name=dataset_name, aug_used=aug_used, cross=cross)
 
     # prep infer args
     infer_args = {
@@ -214,7 +131,7 @@ def run(method, dataset_name, class_type, ep_num, model_name,
 
     if "simpleshot" in method:
         print("Simple shot requires the mean of the features extracted from base dataset")
-        base_ds_path = configs.data_dir[dataset_name] + f'base.json'
+        base_ds_path = DATA_PATHS[dataset_name] + f'base.json'
         base_loader = get_episode_loader(meta_file_path=base_ds_path, image_size=image_size, n_episodes=ep_num,
                                          augmentation=False, n_way=n_way, n_shot=n_shot, n_query=n_query,
                                          num_workers=8, load_sampler_indexes=True, dataset_name=dataset_name)
@@ -234,8 +151,8 @@ def run(method, dataset_name, class_type, ep_num, model_name,
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='few-shot inference')
     parser.add_argument('--seed', default=50, type=int)
-    parser.add_argument('--dataset_name', default="miniImagenet", choices=["CUB", "miniImagenet"])
-    parser.add_argument('--method', default='protonet',
+    parser.add_argument('--dataset_name', default="CUB", choices=["CUB", "miniImagenet"])
+    parser.add_argument('--method', default='simpleshot',
                         choices=["maml_approx", "matchingnet", "protonet", "relationnet",
                                  "relationnet_softmax", "DeepEMD",
                                  "simpleshot"])
@@ -244,9 +161,9 @@ if __name__ == '__main__':
     parser.add_argument('--class_type', default="novel", choices=["base", "val", "novel"])
     parser.add_argument("--n_query", default=15, type=int)
     parser.add_argument("--n_way", default=5, type=int)
-    parser.add_argument("--n_shot", default=1, type=int)
+    parser.add_argument("--n_shot", default=5, type=int)
     parser.add_argument('--ep_num', default=600, type=int)
-    parser.add_argument('--aug_used', action='store_true',  help='performed train augmentation')
+    parser.add_argument('--aug_used', action='store_true', help='performed train augmentation')
     parser.add_argument('--cross', action='store_true')
     args = parser.parse_args()
     print(vars(args))
