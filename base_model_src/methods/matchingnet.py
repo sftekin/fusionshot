@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import numpy as np
-from base_model_src.methods.meta_template import MetaTemplate
+from methods.meta_template import MetaTemplate
 
 
 

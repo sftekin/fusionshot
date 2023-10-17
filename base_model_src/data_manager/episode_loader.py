@@ -6,7 +6,7 @@ import numpy as np
 import pickle as pkl
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
-from base_model_src.data_manager.transform_loader import TransformLoader
+from data_manager.transform_loader import TransformLoader
 
 
 class EpisodeSet(Dataset):
@@ -147,7 +147,8 @@ def get_episode_loader(meta_file_path, image_size, n_episodes, augmentation,
 
     # load the batch sampler if load_sampler_indexes is true
     batch_sampler_path = os.path.join(dataset.sampler_dir,
-                                      f"{dataset.dataset_name}_{n_episodes}_{n_way}way_{n_shot}shot_batch_sampler.pkl")
+                                      f"{dataset.dataset_name}_{n_episodes}_"
+                                      f"{n_way}way_{n_shot}shot_{dataset.class_type}_batch_sampler.pkl")
     if load_sampler_indexes and os.path.exists(batch_sampler_path):
         with open(batch_sampler_path, "rb") as f:
             batch_sampler = pkl.load(f)
