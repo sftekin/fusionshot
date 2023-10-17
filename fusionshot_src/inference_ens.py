@@ -125,6 +125,5 @@ if __name__ == '__main__':
     device = "cpu"
 
     # *** Baseline Comparison model Exps ***
-    all_names = ["matchingnet_ResNet18", "protonet_ResNet18", "maml_approx_ResNet18",
-                 "simpleshot_ResNet18", "DeepEMD"]
+    all_names = ['maml_approx_ResNet18', 'simpleshot_WideRes', 'DeepEMD']
     run(model_names=all_names)

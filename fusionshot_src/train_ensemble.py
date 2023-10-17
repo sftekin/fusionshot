@@ -55,12 +55,13 @@ def load_logits(model_names, dataset, class_type, nway, nshot, ep_count=600):
         if len(method_str) > 1:
             extension_name = method_str[1]
             method_name = f"{method_str[0]}_{extension_name}" if extension_name in ["approx", "softmax"] else \
-            method_str[0]
+                method_str[0]
         else:
             method_name = method_str[0]
 
-        with open(f"{MODEL_OUT_DIR}/{dataset}/{method_name}/{model_n}_{class_type}_{nway}way_{nshot}shot.pkl",
-                  "rb") as f:
+        with open(
+                f"{MODEL_OUT_DIR}/{dataset}/model_outs/{method_name}/{model_n}_{class_type}_{nway}way_{nshot}shot.pkl",
+                "rb") as f:
             results = pkl.load(f)
         logit = results["logits"]
         # logit = np.load(f"{inderence_out_dir}/{dataset}/{method_name}/{model_n}_{class_type}_{nway}way_{nshot}shot_logits.npy")
