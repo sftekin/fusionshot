@@ -70,6 +70,7 @@ def run(model_names, n_query, n_shot, n_way, dataset, weights, size_penalty):
     }
 
     ga_instance = pygad.GA(**ga_params)
+    print("Genetic algorithm has started")
     start_time = time.time()
     ga_instance.run()
     end_time = time.time()
@@ -80,7 +81,6 @@ def run(model_names, n_query, n_shot, n_way, dataset, weights, size_penalty):
     selected_models = [model_names[i] for i in range(len(model_names)) if solution[i]]
     print(f"Selected models in the best solution : {selected_models}")
     print(f"Focal Diversity, Accuracy, and Fitness values of the best solution = {sol_div}, {sol_acc}, {solution_fitness}")
-    print("Index of the best solution : {solution_idx}".format(solution_idx=solution_idx))
     print(f"Lasted {(end_time - start_time)}seconds")
     print(ga_params)
 
@@ -89,8 +89,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='focal diversity pruning')
     parser.add_argument('--dataset_name', default="miniImagenet", choices=["CUB", "miniImagenet"])
     parser.add_argument("--n_query", default=15, type=int)
-    parser.add_argument("--n_way", default=1, type=int)
-    parser.add_argument("--n_shot", default=5, type=int)
+    parser.add_argument("--n_way", default=5, type=int)
+    parser.add_argument("--n_shot", default=1, type=int)
     parser.add_argument("--focal_div_weight", default=0.4, type=float)
     parser.add_argument("--acc_weight", default=0.6, type=float)
     parser.add_argument("--size_penalty", action="store_true")

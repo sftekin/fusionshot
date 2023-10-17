@@ -107,35 +107,37 @@ def plot_acc_div(ens_dict, save_extension=""):
     # plt.suptitle(f"Ensemble Analysis, dataset={ds_name}")
     save_path = os.path.join(ens_fig_dir, f"acc_div_{save_extension}.png")
     plt.savefig(save_path, dpi=200, bbox_inches="tight")
+    print(f"Figure is saved under {save_path}")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='focal diversity pruning')
     parser.add_argument('--dataset_name', default="CUB", choices=["CUB", "miniImagenet"])
     parser.add_argument("--n_query", default=15, type=int)
-    parser.add_argument("--n_way", default=1, type=int)
-    parser.add_argument("--n_shot", default=5, type=int)
+    parser.add_argument("--n_way", default=5, type=int)
+    parser.add_argument("--n_shot", default=1, type=int)
     parser.add_argument('--model_names', nargs='+',
                         help='Model name and backbone e.g. protonet_ResNet18', required=True)
     args = parser.parse_args()
     num_cpu = multiprocessing.cpu_count()
+    cls_name = "val"
 
     # perform ensemble pruning
     print(args.model_names)
     start_time = time.time()
     prune_ensemble_sets(model_names=args.model_names,
-                        class_name="val",
+                        class_name=cls_name,
                         dataset=args.dataset_name,
                         n_shot=args.n_shot,
                         n_way=args.n_way,
                         n_query=args.n_query)
     end_time = time.time()
 
-    with open(f"ens_dict.pkl", "rb") as f:
+    with open(f"ens_dict_{cls_name}.pkl", "rb") as f:
         ens_dict = pkl.load(f)
 
     M = len(args.model_names)
     print(f"M={M}, took {end_time - start_time} seconds")
 
     # plot results
-    plot_acc_div(ens_dict, save_extension=f"-{M}")
+    plot_acc_div(ens_dict, save_extension=f"{M}")
