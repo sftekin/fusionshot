@@ -1,12 +1,14 @@
 import os
-import glob
-import itertools
+import argparse
 import pickle as pkl
 import numpy as np
 import scipy
 import torch.nn
 import torch.nn as nn
 from torch.utils.data import DataLoader
+
+MODEL_OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                             "base_model_src", "inference_out")
 
 
 class MLP(nn.Module):
@@ -46,21 +48,22 @@ def standardize(in_arr):
     return (in_arr - in_arr.mean()) / in_arr.std()
 
 
-def load_logits(model_names, dataset, class_type, nway, nshot, perform_norm=True, norm_params=None, ep_count=600):
-    save_dir = "model_outs"
+def load_logits(model_names, dataset, class_type, nway, nshot, ep_count=600):
     logits = []
     for model_n in model_names:
         method_str = model_n.split("_")
         if len(method_str) > 1:
             extension_name = method_str[1]
-            method_name = f"{method_str[0]}_{extension_name}" if extension_name in ["approx", "softmax"] else method_str[0]
+            method_name = f"{method_str[0]}_{extension_name}" if extension_name in ["approx", "softmax"] else \
+            method_str[0]
         else:
             method_name = method_str[0]
 
-        # with open(f"{save_dir}/{dataset}/{method_name}/{model_n}_{class_type}_{nway}way_{nshot}shot.pkl", "rb") as f:
-        #     results = pkl.load(f)
-        # logit = results["logits"]
-        logit = np.load(f"{save_dir}/{dataset}/{method_name}/{model_n}_{class_type}_{nway}way_{nshot}shot_logits.npy")
+        with open(f"{MODEL_OUT_DIR}/{dataset}/{method_name}/{model_n}_{class_type}_{nway}way_{nshot}shot.pkl",
+                  "rb") as f:
+            results = pkl.load(f)
+        logit = results["logits"]
+        # logit = np.load(f"{inderence_out_dir}/{dataset}/{method_name}/{model_n}_{class_type}_{nway}way_{nshot}shot_logits.npy")
         if method_name == "DeepEMD":
             logit = np.transpose(logit.reshape(ep_count, 15, 5, 5), axes=[0, 2, 1, 3])
             logit = logit.reshape(ep_count, 75, 5)
@@ -68,17 +71,6 @@ def load_logits(model_names, dataset, class_type, nway, nshot, perform_norm=True
             logit *= -1
         logits.append(logit.reshape(-1, 5))
 
-    if perform_norm:
-        logits_t = []
-        stats = []
-        for l in range(len(model_names)):
-            # if norm_params is not None:
-            #     logit_ = (logits[l] - norm_params[0]) / (norm_params[1] - norm_params[0])
-            # else:
-            #     logit_, stat_ = min_max(logits[l])
-            #     stats.append(stat_)
-            logits_t.append(scipy.special.softmax(logits[l], axis=1))
-        logits = logits_t
     return logits
 
 
@@ -124,20 +116,20 @@ def test_loop(model, data_loader, ret_logit=False, device="cuda"):
         return acc_mean, acc_std
 
 
-def run(model_names, dataset, normalize_flag, save_dir, nway, nshot,):
+def run(model_names, dataset, save_dir, n_way, n_shot, n_query, n_epochs):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
     train_logits = load_logits(model_names, dataset=dataset, nway=n_way, nshot=n_shot,
-                               class_type="base", perform_norm=normalize_flag)
+                               class_type="base")
     train_data = create_data(train_logits, n_way, n_query)
 
     val_logits = load_logits(model_names, dataset=dataset, nway=n_way, nshot=n_shot,
-                             class_type="val", perform_norm=normalize_flag)
+                             class_type="val")
     val_data = create_data(val_logits, n_way, n_query)
 
     novel_logits = load_logits(model_names, dataset=dataset, nway=n_way, nshot=n_shot,
-                               class_type="novel", perform_norm=normalize_flag)
+                               class_type="novel")
     novel_data = create_data(novel_logits, n_way, n_query)
 
     train_dataloader = DataLoader(train_data, batch_size=64, shuffle=True)
@@ -159,15 +151,6 @@ def run(model_names, dataset, normalize_flag, save_dir, nway, nshot,):
             optimizer.zero_grad()
             out = model(in_x)
             loss = loss_fn(out, label)
-
-            # if lambda_1 > 0:
-            #     # get L1 over weights
-            #     l1_reg = torch.tensor(0., requires_grad=True).float().to("cuda")
-            #     for name, param in model.named_parameters():
-            #         if "weight" in name:
-            #             l1_reg = l1_reg + torch.norm(param, p=1)
-            #     # return regularized loss (L2 is applied with optimizer)
-            #     loss = loss + lambda_1 * l1_reg
 
             loss.backward()
             optimizer.step()
@@ -209,139 +192,29 @@ def run(model_names, dataset, normalize_flag, save_dir, nway, nshot,):
 
 
 def modify_save_path(save_path):
-        save_path = save_path.replace("matchingnet", "mn")
-        save_path = save_path.replace("protonet", "pn")
-        save_path = save_path.replace("maml_approx", "maml")
-        save_path = save_path.replace("relationnet_softmax", "rn")
-        save_path = save_path.replace("ResNet", "RN")
-        save_path = save_path.replace("Conv", "C")
-        save_path = save_path.replace("simpleshot", "ss")
-        return save_path
+    save_path = save_path.replace("matchingnet", "mn")
+    save_path = save_path.replace("protonet", "pn")
+    save_path = save_path.replace("maml_approx", "maml")
+    save_path = save_path.replace("relationnet_softmax", "rn")
+    save_path = save_path.replace("ResNet", "RN")
+    save_path = save_path.replace("Conv", "C")
+    save_path = save_path.replace("simpleshot", "ss")
+    return save_path
 
 
 if __name__ == '__main__':
-    n_query = 15
-    n_way = 5
-    n_shot = 5
-    n_epochs = 300
-    dataset_name = "cross"
-    # lambda_1 = 0.01
-    # temperatures = [1, 1, 1]
-    # temp_flag = True
-    normalize = True
+    parser = argparse.ArgumentParser(description='focal diversity pruning')
+    parser.add_argument('--dataset_name', default="miniImagenet", choices=["CUB", "miniImagenet"])
+    parser.add_argument("--n_query", default=15, type=int)
+    parser.add_argument("--n_way", default=1, type=int)
+    parser.add_argument("--n_shot", default=5, type=int)
+    parser.add_argument("--n_epochs", default=300, type=int)
+    parser.add_argument('--model_names', nargs='+',
+                        help='Model name and backbone e.g. protonet_ResNet18', required=True)
+    args = parser.parse_args()
 
-    # # *** Simple Shot Exps ***
-    # all_names = ["simpleshot_Conv4", "simpleshot_Conv6", "simpleshot_ResNet10",
-    #              "simpleshot_ResNet18", "simpleshot_ResNet34",
-    #              "simpleshot_WideRes", "simpleshot_DenseNet121"]
-    # ens_sizes = np.arange(2, len(all_names) + 1)
-    # for ens_size in ens_sizes:
-    #     combinations = itertools.combinations(all_names, ens_size)
-    #     for comb in combinations:
-    #         sv_path = f"ens_checkpoints/{'-'.join(comb)}"
-    #         sv_path = modify_save_path(sv_path)
-    #         run(model_names=comb, normalize_flag=normalize, save_dir=sv_path)
-    #
-    # # *** Exps Method Wise ***
-    # model_back_bones = ["Conv4", "Conv6", "ResNet10", "ResNet18", "ResNet34"]
-    # method_names = ["matchingnet", "protonet", "maml_approx", "relationnet", "simpleshot"]
-    # for bb in model_back_bones:
-    #     model_names = [f"{m}_{bb}" for m in method_names]
-    #     ens_sizes = np.arange(2, len(model_names) + 1)
-    #     best_acc, best_conf, best_comb = 0, 0, None
-    #     for ens_size in ens_sizes:
-    #         combinations = itertools.combinations(model_names, ens_size)
-    #         for comb in combinations:
-    #             sv_path = f"ens_checkpoints/{'-'.join(comb)}"
-    #             sv_path = modify_save_path(sv_path)
-    #             print(f"Training {sv_path}")
-    #             exp_acc, exp_conf = run(model_names=comb, normalize_flag=normalize, save_dir=sv_path)
-    #             if exp_acc > best_acc:
-    #                 best_acc = exp_acc
-    #                 best_conf = exp_conf
-    #                 best_comb = comb
-    #     print(f"Experiment finished Best Comb: {best_comb}, with {best_acc:.2f} +- {best_conf}")
-
-    # # *** Exps Backbone Wise ***
-    # model_back_bones = ["Conv4", "Conv6", "ResNet10", "ResNet18", "ResNet34"]
-    # method_names = ["matchingnet", "protonet", "maml_approx", "relationnet", "simpleshot"]
-    # for m in method_names:
-    #     model_names = [f"{m}_{bb}" for bb in model_back_bones]
-    #     ens_sizes = np.arange(2, len(model_names) + 1)
-    #     best_acc, best_conf, best_comb = 0, 0, None
-    #     for ens_size in ens_sizes:
-    #         combinations = itertools.combinations(model_names, ens_size)
-    #         for comb in combinations:
-    #             sv_path = f"ens_checkpoints/{'-'.join(comb)}"
-    #             sv_path = modify_save_path(sv_path)
-    #             print(f"Training {sv_path}")
-    #             exp_acc, exp_conf = run(model_names=comb, normalize_flag=normalize, save_dir=sv_path)
-    #             if exp_acc > best_acc:
-    #                 best_acc = exp_acc
-    #                 best_conf = exp_conf
-    #                 best_comb = comb
-    #     print(f"Experiment finished Best Comb: {best_comb}, with {best_acc:.2f} +- {best_conf}")
-
-    # # *** Baseline Comparison model Exps ***
-    # all_names = ["matchingnet_ResNet18", "protonet_ResNet18", "maml_approx_ResNet18",
-    #              "relationnet_softmax_ResNet18", "simpleshot_ResNet18", "DeepEMD"]
-    # ens_sizes = np.arange(2, len(all_names) + 1)
-    # for ens_size in ens_sizes:
-    #     combinations = itertools.combinations(all_names, ens_size)
-    #     for comb in combinations:
-    #         sv_path = f"ens_checkpoints/{'-'.join(comb)}"
-    #         sv_path = modify_save_path(sv_path)
-    #         sv_path += f"_{n_way}way_{n_shot}shot"
-    #         if os.path.exists(sv_path):
-    #             print(f"Passed {comb}")
-    #             continue
-    #         else:
-    #             if os.path.exists(sv_path):
-    #                 print(f"Passed {comb}")
-    #                 continue
-    #         print(f"Training {sv_path}")
-    #         run(model_names=comb, normalize_flag=normalize, save_dir=sv_path,  nway=n_way, nshot=n_shot, dataset=dataset_name)
-
-    # *** Best model Exps ***
-    # all_names = ["maml_approx_ResNet18", "protonet_ResNet18",  "matchingnet_ResNet18", "relationnet_softmax_ResNet18"]
-    # all_names = ["simpleshot_Conv4", "simpleshot_ResNet18",  "simpleshot_ResNet34",
-    #              "simpleshot_ResNet18", "simpleshot_WideRes", "simpleshot_DenseNet121"]
-    # all_names = ["protonet_ResNet18", "relationnet_softmax_ResNet18", "matchingnet_ResNet18", "simpleshot_ResNet18",  "maml_approx_ResNet18", "DeepEMD"]
-
-    # # ** GA decided **
-    # all_names = ['matchingnet_Conv4', 'matchingnet_ResNet10', 'matchingnet_ResNet18',
-    #          'matchingnet_ResNet34', 'protonet_Conv4', 'protonet_ResNet10',
-    #          'protonet_ResNet18', 'protonet_ResNet34', 'maml_approx_Conv4',
-    #          'maml_approx_ResNet10', 'maml_approx_ResNet18', 'maml_approx_ResNet34',
-    #           'relationnet_Conv4', 'relationnet_ResNet10', 'relationnet_ResNet18',
-    #           'relationnet_ResNet34', 'simpleshot_ResNet34', 'simpleshot_DenseNet121',
-    #           'simpleshot_WideRes', 'DeepEMD']
-    # all_names = ['maml_approx_ResNet18', 'maml_approx_ResNet34', 'simpleshot_WideRes', 'DeepEMD']
-
-    # # *** Cross Domain ***
-    # n_query = 15
-    # n_way = 5
-    # n_shot = 5
-    # n_epochs = 300
-    # dataset_name = "cross"
-    # all_names = ["maml_approx_ResNet18", "matchingnet_ResNet18",
-    #              "protonet_ResNet18", "relationnet_softmax_ResNet18",
-    #              "simpleshot_ResNet18"]
-    # ens_sizes = np.arange(2, len(all_names) + 1)
-    # for ens_size in ens_sizes:
-    #     combinations = itertools.combinations(all_names, ens_size)
-    #     for comb in combinations:
-    #         sv_path = f"ens_checkpoints/{dataset_name}/{'-'.join(comb)}"
-    #         sv_path = modify_save_path(sv_path)
-    #         run(model_names=all_names, dataset=dataset_name, normalize_flag=normalize, save_dir=sv_path,
-    #             nway=n_way, nshot=n_shot)
-
-    all_names = ["matchingnet_ResNet18",
-                 "protonet_ResNet18",
-                 "simpleshot_ResNet18"]
-
-    sv_path = f"ens_checkpoints/{dataset_name}/{'-'.join(all_names)}"
+    sv_path = f"ens_checkpoints/{args.dataset_name}/{'-'.join(args.model_names)}"
     sv_path = modify_save_path(sv_path)
-    sv_path += f"_{n_way}way_{n_shot}shot"
-    run(model_names=all_names, dataset=dataset_name, normalize_flag=normalize, save_dir=sv_path,
-        nway=n_way, nshot=n_shot)
+    sv_path += f"_{args.n_way}way_{args.n_shot}shot"
+    run(model_names=args.model_names, dataset=args.dataset_name, save_dir=sv_path,
+        n_way=args.n_way, n_shot=args.n_shot, n_query=args.n_query, n_epochs=args.n_epochs)

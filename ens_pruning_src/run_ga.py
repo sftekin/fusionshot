@@ -5,40 +5,16 @@ from helper import load_predictions, calculate_errors
 from diversity_stats import calc_generalized_div
 from ensemble_methods import voting
 import time
+import argparse
 
 
-def run():
-    n_query = 15
-    n_way = 5
-    n_shot = 1
+def run(model_names, n_query, n_shot, n_way, dataset, weights, size_penalty):
     ds_name = "val"
-    dataset = "miniImagenet"
-    working_dir = os.path.dirname(os.path.abspath(__file__))
-
-    model_back_bones = ["ResNet34"]
-    # model_back_bones = ["ResNet34"]
-    model_back_bones = ["Conv4", "Conv6", "ResNet10", "ResNet18", "ResNet34"]
-    method_names = ["matchingnet", "protonet", "maml_approx", "relationnet"]
-    model_names = []
-    for m in method_names:
-        for bb in model_back_bones:
-            model_names.append(f"{m}_{bb}")
-
-    # Add simple shot models to the pool
-    # ss_back_bones = ["ResNet18"]
-    ss_back_bones = ["Conv4", "Conv6", "ResNet10", "ResNet18", "ResNet34", "DenseNet121", "WideRes"]
-    ss_methods = [f"simpleshot_{bb}" for bb in ss_back_bones]
-    model_names += ss_methods
-
-    # Add DeepEMD also
-    model_names.append("DeepEMD")
 
     # prepare the model paths
     predictions, pred_arr = load_predictions(model_names=model_names, n_query=n_query, n_shot=n_shot,
                                              n_way=n_way, class_name=ds_name, dataset=dataset)
-
     all_error_dict, all_error_arr = calculate_errors(predictions, pred_arr, n_query=n_query, n_way=n_way)
-
 
     def calc_div_acc(solution):
         comb_idx = solution.astype(bool)
@@ -71,11 +47,9 @@ def run():
         else:
             focal_div, acc_score = calc_div_acc(solution)
             score = focal_div * weights[0] + acc_score * weights[1]
-            score -= 0.1 * sum(solution)/len(solution)
+            if size_penalty:
+                score -= 0.1 * sum(solution)/len(solution)
         return score
-
-    # create GA params
-    weights = [0.3, 0.7]  # div_weight, acc_weight
 
     ga_params = {
         "num_generations": 1000,
@@ -109,57 +83,22 @@ def run():
     print("Index of the best solution : {solution_idx}".format(solution_idx=solution_idx))
     print(f"Lasted {(end_time - start_time)}seconds")
     print(ga_params)
-    # fun_inputs = [4, -2, 3.5, 5, -11, -4.7]
-    # desired_output = 44
-    #
-    # def fitness_function(ga_instance, solution, solution_idx):
-    #     output = np.sum(solution * fun_inputs)
-    #     fitness = 1.0 / np.abs(output - desired_output)
-    #     return fitness
-    #
-    # # PyGAD parameters
-    # fitness_func = fitness_function
-    #
-    # num_generations = 50
-    # num_parents_mating = 4
-    #
-    # sol_per_pop = 8
-    # num_genes = len(fun_inputs)
-    #
-    # init_range_low = -2
-    # init_range_high = 5
-    #
-    # parent_selection_type = "sss"
-    # keep_parents = 1
-    #
-    # crossover_type = "single_point"
-    #
-    # mutation_type = "random"
-    # mutation_percent_genes = 10
-    #
-    # ga_instance = pygad.GA(num_generations=num_generations,
-    #                        num_parents_mating=num_parents_mating,
-    #                        fitness_func=fitness_func,
-    #                        sol_per_pop=sol_per_pop,
-    #                        num_genes=num_genes,
-    #                        init_range_low=init_range_low,
-    #                        init_range_high=init_range_high,
-    #                        parent_selection_type=parent_selection_type,
-    #                        keep_parents=keep_parents,
-    #                        crossover_type=crossover_type,
-    #                        mutation_type=mutation_type,
-    #                        gene_type=int,
-    #                        mutation_percent_genes=mutation_percent_genes)
-    #
-    # ga_instance.run()
-    #
-    # solution, solution_fitness, solution_idx = ga_instance.best_solution()
-    # print("Parameters of the best solution : {solution}".format(solution=solution))
-    # print("Fitness value of the best solution = {solution_fitness}".format(solution_fitness=solution_fitness))
-    #
-    # prediction = np.sum(np.array(fun_inputs) * solution)
-    # print("Predicted output based on the best solution : {prediction}".format(prediction=prediction))
 
 
 if __name__ == '__main__':
-    run()
+    parser = argparse.ArgumentParser(description='focal diversity pruning')
+    parser.add_argument('--dataset_name', default="miniImagenet", choices=["CUB", "miniImagenet"])
+    parser.add_argument("--n_query", default=15, type=int)
+    parser.add_argument("--n_way", default=1, type=int)
+    parser.add_argument("--n_shot", default=5, type=int)
+    parser.add_argument("--focal_div_weight", default=0.4, type=float)
+    parser.add_argument("--acc_weight", default=0.6, type=float)
+    parser.add_argument("--size_penalty", action="store_true")
+    parser.add_argument('--model_names', nargs='+',
+                        help='Model name and backbone e.g. protonet_ResNet18', required=True)
+    args = parser.parse_args()
+
+    wgh = [args.focal_div_weight, args.acc_weight]  # div_weight, acc_weight
+
+    run(model_names=args.model_names, weights=wgh, dataset=args.dataset_name,
+        n_shot=args.n_shot, n_way=args.n_way, n_query=args.n_query, size_penalty=args.size_penalty)

@@ -1,0 +1,1 @@
+python --n_shot 1 --n_way 5 --n_query 15 --dataset_name miniImagenet --model_names matchingnet_Conv4 matchingnet_ResNet18 protonet_Conv4 protonet_ResNet18 maml_approx_Conv4 maml_approx_ResNet18 relationnet_Conv4 relationnet_ResNet18 simpleshot_DenseNet121 simpleshot_WideRes DeepEMD
