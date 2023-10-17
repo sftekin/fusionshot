@@ -78,20 +78,20 @@ class DeepEMD(nn.Module):
     def get_sfc(self, support):
         support = support.squeeze(0)
         # init the proto
-        SFC = support.view(self.args.shot, -1, 640, support.shape[-2], support.shape[-1]).mean(dim=0).clone().detach()
+        SFC = support.view(self.args.n_shot, -1, 640, support.shape[-2], support.shape[-1]).mean(dim=0).clone().detach()
         SFC = nn.Parameter(SFC.detach(), requires_grad=True)
 
         optimizer = torch.optim.SGD([SFC], lr=self.args.sfc_lr, momentum=0.9, dampening=0.9, weight_decay=0)
 
         # crate label for finetune
-        label_shot = torch.arange(self.args.way).repeat(self.args.shot)
+        label_shot = torch.arange(self.args.n_way).repeat(self.args.n_shot)
         label_shot = label_shot.type(torch.cuda.LongTensor)
 
         with torch.enable_grad():
             for k in range(0, self.args.sfc_update_step):
-                rand_id = torch.randperm(self.args.way * self.args.shot).cuda()
-                for j in range(0, self.args.way * self.args.shot, self.args.sfc_bs):
-                    selected_id = rand_id[j: min(j + self.args.sfc_bs, self.args.way * self.args.shot)]
+                rand_id = torch.randperm(self.args.n_way * self.args.n_shot).cuda()
+                for j in range(0, self.args.n_way * self.args.n_shot, self.args.sfc_bs):
+                    selected_id = rand_id[j: min(j + self.args.sfc_bs, self.args.n_way * self.args.n_shot)]
                     batch_shot = support[selected_id, :]
                     batch_label = label_shot[selected_id]
                     optimizer.zero_grad()

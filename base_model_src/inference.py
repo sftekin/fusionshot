@@ -111,7 +111,7 @@ def run(method, dataset_name, class_type, ep_num, model_name,
                                 num_workers=8, load_sampler_indexes=True, dataset_name=dataset_name)
 
     model = load_model(method=method, model_name=model_name, n_way=n_way, n_shot=n_shot, n_query=n_query,
-                       dataset_name=dataset_name, aug_used=aug_used, cross=cross)
+                       dataset_name=dataset_name, aug_used=aug_used, cross=cross, args=args)
 
     # prep infer args
     infer_args = {
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='few-shot inference')
     parser.add_argument('--seed', default=50, type=int)
     parser.add_argument('--dataset_name', default="miniImagenet", choices=["CUB", "miniImagenet"])
-    parser.add_argument('--method', default='relationnet',
+    parser.add_argument('--method', default='DeepEMD',
                         choices=["maml_approx", "matchingnet", "protonet", "relationnet",
                                  "relationnet_softmax", "DeepEMD",
                                  "simpleshot"])
@@ -165,6 +165,22 @@ if __name__ == '__main__':
     parser.add_argument('--ep_num', default=600, type=int)
     parser.add_argument('--aug_used', action='store_true', help='performed train augmentation')
     parser.add_argument('--cross', action='store_true')
+
+    # Additional Deep Emd Arguments
+    parser.add_argument('-temperature', type=float, default=12.5)
+    parser.add_argument('-metric', type=str, default='cosine', choices=['cosine'])
+    parser.add_argument('-norm', type=str, default='center', choices=['center'])
+    parser.add_argument('-deepemd', type=str, default='fcn', choices=['fcn', 'grid', 'sampling'])
+    parser.add_argument('-feature_pyramid', type=str, default=None)
+    parser.add_argument('-num_patch', type=int, default=9)
+    parser.add_argument('-patch_list', type=str, default='2,3')
+    parser.add_argument('-patch_ratio', type=float, default=2)
+    parser.add_argument('-solver', type=str, default='opencv', choices=['opencv'])
+    parser.add_argument('-sfc_lr', type=float, default=100)
+    parser.add_argument('-sfc_wd', type=float, default=0, help='weight decay for SFC weight')
+    parser.add_argument('-sfc_update_step', type=float, default=100)
+    parser.add_argument('-sfc_bs', type=int, default=4)
+
     args = parser.parse_args()
     print(vars(args))
 

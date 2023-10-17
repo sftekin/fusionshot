@@ -9,7 +9,7 @@ from methods.relationnet import RelationNet
 from methods.maml import MAML
 from methods.deep_emd import DeepEMD
 import methods.ss_backbones as ss_backbones
-from methods.emd_utils import emd_load_model, get_deep_emd_args
+from methods.emd_utils import emd_load_model
 
 model_dict = dict(
     Conv4=backbone.Conv4,
@@ -64,7 +64,7 @@ def get_image_size(method, model_name):
     return image_size
 
 
-def load_model(method, model_name, n_way, n_shot, n_query, dataset_name, aug_used=False, cross=False):
+def load_model(method, model_name, n_way, n_shot, n_query, dataset_name, args, aug_used=False, cross=False):
     if cross:
         trained_dataset = "miniImagenet"
     else:
@@ -91,8 +91,7 @@ def load_model(method, model_name, n_way, n_shot, n_query, dataset_name, aug_use
     elif method == "matchingnet":
         model = MatchingNet(model_dict[model_name], n_way=n_way, n_support=n_shot)
     elif method == "DeepEMD":
-        deep_emd_args = get_deep_emd_args(way=n_way, shot=n_shot, query=n_query)
-        model = DeepEMD(args=deep_emd_args)
+        model = DeepEMD(args=args)
         model = model.cuda()
     elif "simpleshot" in method:
         bb_model = model_name.lower()

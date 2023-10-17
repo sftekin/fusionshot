@@ -135,35 +135,6 @@ def emd_load_model(model, dir, mode="cuda"):
     return model
 
 
-def get_deep_emd_args(way, shot, query):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-way', type=int, default=way)
-    parser.add_argument('-shot', type=int, default=shot)
-    parser.add_argument('-query', type=int, default=query, help='number of query image per class')
-    parser.add_argument('--cross', action='store_true')
-
-    parser.add_argument('-temperature', type=float, default=12.5)
-    parser.add_argument('-metric', type=str, default='cosine', choices=['cosine'])
-    parser.add_argument('-norm', type=str, default='center', choices=['center'])
-    parser.add_argument('-deepemd', type=str, default='fcn', choices=['fcn', 'grid', 'sampling'])
-    parser.add_argument('-feature_pyramid', type=str, default=None)
-    parser.add_argument('-num_patch', type=int, default=9)
-    parser.add_argument('-patch_list', type=str, default='2,3')
-    parser.add_argument('-patch_ratio', type=float, default=2)
-    parser.add_argument('-solver', type=str, default='opencv', choices=['opencv'])
-    parser.add_argument('-sfc_lr', type=float, default=100)
-    parser.add_argument('-sfc_wd', type=float, default=0, help='weight decay for SFC weight')
-    parser.add_argument('-sfc_update_step', type=float, default=100)
-    parser.add_argument('-sfc_bs', type=int, default=4)
-
-    parser.add_argument('--method', default='DeepEMD')
-    parser.add_argument('--data_set', default="novel", choices=["base", "val", "novel"])
-    parser.add_argument('--ep_num', default=1000, type=int)
-    parser.add_argument('--seed', default=42, type=int)
-    args = parser.parse_args()
-    return args
-
-
 if __name__ == '__main__':
     random_seed = True
     if random_seed:
