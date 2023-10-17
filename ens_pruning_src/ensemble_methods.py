@@ -30,22 +30,6 @@ def voting(pred_arr, method, n_query, n_way):
     return ens_pred
 
 
-# def majority_plus(pred_arr):
-#     def find_majority_plus(preds, other_preds):
-#         count = np.bincount(preds.astype(int))
-#         threshold = len(preds) // 2
-#         major_satisfied = count.max() > threshold
-#         if major_satisfied:
-#             ret_val = float(np.argmax(count))
-#         else:
-#             if (len(preds) % 2 == 0) & (len(preds) > 2):
-#                 agree_idx = count == count.max()
-#                 find_majority_plus()
-#             else:
-#                 ret_val = np.nan
-#         return ret_val
-
-
 ensemble_methods = {
     "voting": voting
 }

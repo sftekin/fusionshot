@@ -1,6 +1,7 @@
 import numpy as np
 import pickle as pkl
 
+
 def load_predictions(model_names, n_query, n_way, n_shot, class_name, dataset):
     predictions = {}
     pred_arr = []
@@ -16,7 +17,6 @@ def load_predictions(model_names, n_query, n_way, n_shot, class_name, dataset):
             results = pkl.load(f)
         pred = results["predicts"]
 
-        # pred = np.load(f"model_outs/{dataset}/{method_name}/{model_n}_{class_name}_{n_way}way_{n_shot}shot_predicts.npy")
         if model_n == "DeepEMD":
             order = lambda x: x.reshape(n_query, n_way).T.flatten()
             pred = np.apply_along_axis(order, axis=1, arr=pred)
