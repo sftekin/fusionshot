@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import numpy as np
 from methods.meta_template import MetaTemplate
-
+import utils
 
 
 class MatchingNet(MetaTemplate):
@@ -50,7 +50,7 @@ class MatchingNet(MetaTemplate):
         G, G_normalized = self.encode_training_set( z_support)
 
         y_s         = torch.from_numpy(np.repeat(range( self.n_way ), self.n_support ))
-        Y_S         = Variable( utils.one_hot(y_s, self.n_way ) ).cuda()
+        Y_S         = Variable(utils.one_hot(y_s, self.n_way ) ).cuda()
         f           = z_query
         logprobs = self.get_logprobs(f, G, G_normalized, Y_S)
         return logprobs
