@@ -76,11 +76,17 @@ def run(model_names, n_query, n_shot, n_way, dataset, weights, size_penalty):
     end_time = time.time()
     ga_instance.plot_fitness(ylabel="Score", title="", font_size=16)
 
-    solution, solution_fitness, solution_idx = ga_instance.best_solution()
-    sol_div, sol_acc = calc_div_acc(solution)
-    selected_models = [model_names[i] for i in range(len(model_names)) if solution[i]]
-    print(f"Selected models in the best solution : {selected_models}")
-    print(f"Focal Diversity, Accuracy, and Fitness values of the best solution = {sol_div}, {sol_acc}, {solution_fitness}")
+    # solution, solution_fitness, solution_idx = ga_instance.best_solution()
+
+    pop_fitness = ga_instance.cal_pop_fitness()
+    top_idx = pop_fitness.argsort()[-5:]
+    for i in range(5):
+        sol = ga_instance.population[top_idx[i]]
+        sol_div, sol_acc = calc_div_acc(sol)
+        selected_models = [model_names[i] for i in range(len(model_names)) if sol[i]]
+        print(f"Selected models in the top {i} solution : {selected_models} with "
+              f"Focal Diversity, Accuracy, and Fitness value = {sol_div}, {sol_acc}, {pop_fitness[top_idx[i]]}")
+
     print(f"Lasted {(end_time - start_time)}seconds")
     print(ga_params)
 
@@ -91,8 +97,8 @@ if __name__ == '__main__':
     parser.add_argument("--n_query", default=15, type=int)
     parser.add_argument("--n_way", default=5, type=int)
     parser.add_argument("--n_shot", default=1, type=int)
-    parser.add_argument("--focal_div_weight", default=0.4, type=float)
-    parser.add_argument("--acc_weight", default=0.6, type=float)
+    parser.add_argument("--focal_div_weight", default=0.6, type=float)
+    parser.add_argument("--acc_weight", default=0.4, type=float)
     parser.add_argument("--size_penalty", action="store_true")
     parser.add_argument('--model_names', nargs='+',
                         help='Model name and backbone e.g. protonet_ResNet18', required=True)

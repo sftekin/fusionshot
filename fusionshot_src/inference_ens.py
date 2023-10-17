@@ -12,6 +12,8 @@ from ens_pruning_src.ensemble_methods import voting
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+CUR_PATH = os.path.dirname(os.path.abspath(__file__))
+
 
 def plot_ensemble_stats(model_stats):
     model_names = model_stats["model_names"]
@@ -96,7 +98,7 @@ def plot_improvement(model_stats, method_names):
 
 
 def run(model_names):
-    sv_path = f"ens_checkpoints/{dataset}/{'-'.join(model_names)}"
+    sv_path = f"{CUR_PATH}/ens_checkpoints/{dataset}/{'-'.join(model_names)}_{n_way}way_{n_shot}shot"
     sv_path = modify_save_path(sv_path)
     outfile = os.path.join(sv_path, f'best_model.tar')
 
@@ -104,8 +106,7 @@ def run(model_names):
     tmp = torch.load(outfile, map_location=device)
     model.load_state_dict(tmp["state"])
 
-    novel_logits = load_logits(model_names, dataset=dataset, class_type="novel",
-                               perform_norm=True, nway=n_way, nshot=n_shot)
+    novel_logits = load_logits(model_names, dataset=dataset, class_type="novel", nway=n_way, nshot=n_shot)
     novel_data = create_data(logits=novel_logits, n_query=n_query, n_way=n_way, shuffle=False)
 
     model.to(device)
@@ -124,6 +125,5 @@ if __name__ == '__main__':
     dataset = "miniImagenet"
     device = "cpu"
 
-    # *** Baseline Comparison model Exps ***
-    all_names = ['maml_approx_ResNet18', 'simpleshot_WideRes', 'DeepEMD']
+    all_names = ['protonet_ResNet18', "maml_approx_ResNet18", 'simpleshot_ResNet18', 'DeepEMD']
     run(model_names=all_names)

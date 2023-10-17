@@ -1,4 +1,12 @@
-# Installation
+# FusionShot: Boosting Few Shot Learners with Focal-Diversity Optimized Ensemble Method
+
+![alt text](./ensemble.jpg)
+We present `FusionShot` a focal diversity optimized few-shot ensemble learning framework with three steps.
+1) Obtain training and validation predictions for each base Few-shot Learning Model.
+2) Select the best ensemble set among the pool of Few-Shot Learners using Genetic Algorithm.
+3) Train FusionShot model on top of the base-models using training-val predictions and perform prediction for novel classes.
+
+## Installation
 ```
 $ pip install requirements.txt
 ```
@@ -22,23 +30,31 @@ Extract them under `checkpoints/`.
 # Running
 
 ## Obtaining Predictions from Base Models
-run
+To obtain 5way 1shot predictions for miniImagenet
 ```
 $ cd base_model_src/
-$ ./inference.sh
+$ ./inference_miniImagenet_5way_1shot.sh
 ```
 
 ## Pruning the ensemble set
-
+To perform bruteforce to see all the ensemble combinations
 ```
 $ cd ens_pruning_src/
-$ ./prune.sh
+$ ./run_bruteforce.sh
 ```
+
+To perform Genetic Algorithm to select the best performing combinations
+```
+$ cd ens_pruning_src/
+$ ./run_ga.sh
+```
+
 
 ## Training and Running Fusionshot
-
+After you observe the best ensemble set by runing the pruning scripts, you can train your FusionShot model by calling,
 ```
 $ cd fusionshot_src/
-$ python train_ensemble.py
+$ ./run_train.sh
 ```
+
 
