@@ -3,3 +3,4 @@ qpth
 cvxpy
 opencv-python
 pygad
+torchvision
