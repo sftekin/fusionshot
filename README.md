@@ -17,6 +17,8 @@ Download the mini-Imagenet and CUB datasets at the following link and extract th
 - Mini-Imagenet Link: https://www.dropbox.com/scl/fi/1i5zt3m3o1hmu34ywsl9d/miniImagenet.zip?rlkey=hlwhs3p729uyzpn5yd785lb7c&dl=0
 - CUB Link: https://www.dropbox.com/scl/fi/j6208ndbc7e7qvzo0qfgh/CUB.zip?rlkey=3lcyfpmx85wa46u5bk814goki&dl=0
 
+Then run the python scripts create_split_jsons.py inside filelists/CUB/ and filelists/miniImagenet/ folders 
+
 ## Models
 The trained base-models for each dataset can be found at the link on below.
 
