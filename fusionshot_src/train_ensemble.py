@@ -207,8 +207,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='focal diversity pruning')
     parser.add_argument('--dataset_name', default="miniImagenet", choices=["CUB", "miniImagenet"])
     parser.add_argument("--n_query", default=15, type=int)
-    parser.add_argument("--n_way", default=1, type=int)
-    parser.add_argument("--n_shot", default=5, type=int)
+    parser.add_argument("--n_way", default=5, type=int)
+    parser.add_argument("--n_shot", default=1, type=int)
     parser.add_argument("--n_epochs", default=300, type=int)
     parser.add_argument('--model_names', nargs='+',
                         help='Model name and backbone e.g. protonet_ResNet18', required=True)
