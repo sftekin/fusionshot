@@ -1,4 +1,4 @@
-# FusionShot: Boosting Few Shot Learners with Focal-Diversity Optimized Ensemble Method
+# Ensemble Methods for Robust Few-Shot Learning
 
 ![alt text](./ensemble.jpg)
 We present `FusionShot` a focal diversity optimized few-shot ensemble learning framework with three steps.
