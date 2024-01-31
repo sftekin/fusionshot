@@ -6,10 +6,13 @@ import random
 import pickle as pkl
 import argparse
 from methods.emd_utils import deep_emd_episode
+from methods.protonet import euclidean_dist
 from methods.simpleshot_utils import ss_step, ss_episode
 from data_manager.episode_loader import get_episode_loader
+from data_manager.simple_loader import get_simple_loader
 from utils import load_model, get_image_size
 import torch.multiprocessing
+from data_manager.simple_loader import get_cpu_loader
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 CUR_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -27,6 +30,15 @@ def infer(model, loader, mode, method, model_name, n_query, n_way, n_shot, **kwa
     negatives = np.zeros((len(loader), n_query * n_way))
     labels = np.zeros((len(loader), n_query * n_way))
     one_forward_pass = 0
+    train_features = kwargs.get("train_features", None)
+    if train_features is not None:
+        mu = train_features.reshape(-1, train_features.shape[2]).mean(dim=0)
+        # train_features = train_features - mu
+        # train_features = train_features / torch.norm(train_features, p=2, dim=1, keepdim=True)
+    if method == "easy":
+        for m in model:
+            m.eval()
+
     for i, (x, y) in enumerate(loader):
         if method == "DeepEMD":
             with torch.no_grad():
@@ -37,6 +49,26 @@ def infer(model, loader, mode, method, model_name, n_query, n_way, n_shot, **kwa
                 y_query = np.tile(range(n_way), n_query)
                 pred = scores.argmax(dim=1).detach().cpu().numpy()
                 logits[i, :] = scores.detach().cpu().numpy()
+        elif method == "easy":
+            x = x.reshape(n_way * (n_shot + n_query), *x.size()[2:]).cuda()
+            with torch.no_grad():
+                features = torch.cat([m(x)[1] for m in model], dim=1)
+                # _, features = model(x)
+                features = features - mu.unsqueeze(0)
+                features = features / torch.norm(features, p=2, dim=1, keepdim=True)
+                features = features.reshape(n_way, n_shot + n_query, -1)
+                z_support = features[:, :n_shot]
+                z_query = features[:, n_shot:]
+                means = z_support.mean(dim=1)
+                dist = euclidean_dist(z_query.reshape(n_way * n_query, -1), means)
+                # means = torch.mean(features[:, :n_shot], dim=1)
+                # distances = torch.norm(
+                #     features[:, n_shot:].reshape(1, n_way, 1, -1, 1920) - means.reshape(
+                #         1, 1, n_way, 1, 1920), dim=4, p=2)
+                scores = -dist
+            pred = scores.argmax(dim=1).detach().cpu().numpy()
+            logits[i, :] = scores.detach().cpu().numpy()
+            y_query = np.repeat(range(n_way), n_query)
         elif "simpleshot" in method:
             with torch.no_grad():
                 start_time = time.time()
@@ -100,6 +132,31 @@ def calc_model_size(model):
     print('model size: {:.3f}MB'.format(size_all_mb))
 
 
+def get_features(model, imagesize, dataset_name, class_name, num_classes, n_shot, n_way):
+    for m in model:
+        m.eval()
+    save_path = f"{class_name}_features.tar"
+    if os.path.exists(save_path):
+        features_total = torch.load(save_path)
+    else:
+        # simple_loader = get_simple_loader(meta_file_path=DATA_PATHS[dataset_name] + f"{class_name}.json",
+        #                                   image_size=imagesize, batch_size=64,
+        #                                   num_workers=8, augmentation=False)
+        simple_loader = get_cpu_loader(imagesize, class_name)
+        all_features = []
+        for batch_idx, (data, target) in enumerate(simple_loader):
+            print(f"\r{class_name} Episode {batch_idx} / {len(simple_loader)}", end="", flush=True)
+            with torch.no_grad():
+                data, target = data.cuda(), target.cuda()
+                features = torch.cat([m(data)[1] for m in model], dim=1)
+                # _, features = model(data)
+                all_features.append(features)
+        features_total = torch.cat(all_features, dim=0).reshape(num_classes, -1, all_features[0].shape[1])
+        torch.save(features_total, f"{class_name}_features.tar")
+
+    return features_total
+
+
 def run(method, dataset_name, class_type, ep_num, model_name,
         n_query, n_way, n_shot, aug_used=False, cross=False):
     base_file = DATA_PATHS[dataset_name] + f'{class_type}.json'
@@ -127,21 +184,34 @@ def run(method, dataset_name, class_type, ep_num, model_name,
         "dataset_name": "cross" if cross else dataset_name
     }
 
-    calc_model_size(model)
+    # calc_model_size(model)
+
+    if "easy" in method:
+        train_features = get_features(model, image_size, dataset_name, "base", 64, n_way, n_shot)
+        # val_features = get_features(model, image_size, dataset_name, "val", 16)
+        # novel_features = get_features(model, image_size, dataset_name, "novel", 20)
+        infer_args["train_features"] = train_features
+        # infer_args["val_features"] = val_features,
+        # infer_args["novel_features"] = novel_features
 
     if "simpleshot" in method:
-        print("Simple shot requires the mean of the features extracted from base dataset")
-        base_ds_path = DATA_PATHS[dataset_name] + f'base.json'
-        base_loader = get_episode_loader(meta_file_path=base_ds_path, image_size=image_size, n_episodes=ep_num,
-                                         augmentation=False, n_way=n_way, n_shot=n_shot, n_query=n_query,
-                                         num_workers=8, load_sampler_indexes=True, dataset_name=dataset_name)
-        base_mean = []
-        with torch.no_grad():
-            for i, (x, y) in enumerate(base_loader):
-                print(f"\rBase Episode {i} / {len(base_loader)}", end="", flush=True)
-                output, fc_output = ss_step(model, x, n_way, n_shot, n_query)
-                base_mean.append(output.detach().cpu().data.numpy())
-        base_mean = np.concatenate(base_mean, axis=0).mean(0)
+        save_path = f"simple_shot_base_features_{method}_{model_name}.tar"
+        if os.path.exists(save_path):
+            base_mean = torch.load(save_path)
+        else:
+            print("Simple shot requires the mean of the features extracted from base dataset")
+            base_ds_path = DATA_PATHS[dataset_name] + f'base.json'
+            base_loader = get_episode_loader(meta_file_path=base_ds_path, image_size=image_size, n_episodes=ep_num,
+                                             augmentation=False, n_way=n_way, n_shot=n_shot, n_query=n_query,
+                                             num_workers=8, load_sampler_indexes=True, dataset_name=dataset_name)
+            base_mean = []
+            with torch.no_grad():
+                for i, (x, y) in enumerate(base_loader):
+                    print(f"\rBase Episode {i} / {len(base_loader)}", end="", flush=True)
+                    output, fc_output = ss_step(model, x, n_way, n_shot, n_query)
+                    base_mean.append(output.detach().cpu().data.numpy())
+            base_mean = np.concatenate(base_mean, axis=0).mean(0)
+            torch.save(base_mean, save_path)
         infer_args["base_mean"] = base_mean
 
     # train
@@ -152,13 +222,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='few-shot inference')
     parser.add_argument('--seed', default=50, type=int)
     parser.add_argument('--dataset_name', default="miniImagenet", choices=["CUB", "miniImagenet"])
-    parser.add_argument('--method', default='DeepEMD',
+    parser.add_argument('--method', default='simpleshot',
                         choices=["maml_approx", "matchingnet", "protonet", "relationnet",
                                  "relationnet_softmax", "DeepEMD",
-                                 "simpleshot"])
-    parser.add_argument('--model_name', default="ResNet18", choices=['Conv4', 'Conv6', 'ResNet10', 'ResNet18',
+                                 "simpleshot", "easy"])
+    parser.add_argument('--model_name', default="Conv6", choices=['Conv4', 'Conv6', 'ResNet10', 'ResNet18',
                                                                      'ResNet34', "WideRes", "DenseNet121"])
-    parser.add_argument('--class_type', default="val", choices=["base", "val", "novel"])
+    parser.add_argument('--class_type', default="novel", choices=["base", "val", "novel"])
     parser.add_argument("--n_query", default=15, type=int)
     parser.add_argument("--n_way", default=5, type=int)
     parser.add_argument("--n_shot", default=1, type=int)

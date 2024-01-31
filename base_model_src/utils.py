@@ -10,6 +10,7 @@ from methods.maml import MAML
 from methods.deep_emd import DeepEMD
 import methods.ss_backbones as ss_backbones
 from methods.emd_utils import emd_load_model
+from methods.easy_backbones.resnet12 import ResNet12
 
 model_dict = dict(
     Conv4=backbone.Conv4,
@@ -49,7 +50,7 @@ def one_hot(y, num_class):
 
 
 def get_image_size(method, model_name):
-    if method == "DeepEMD":
+    if method in ["DeepEMD", "easy"]:
         image_size = 84
     elif "simpleshot" in method:
         if model_name.lower() in ["conv4", "conv6"]:
@@ -112,6 +113,8 @@ def load_model(method, model_name, n_way, n_shot, n_query, dataset_name, args, a
         num_classes = 100 if trained_dataset == "CUB" else 64
         model = bb_mapper[bb_model](num_classes=num_classes, remove_linear=False)
         model = torch.nn.DataParallel(model).cuda()
+    elif method == "easy":
+        model = ResNet12(64, [3, 84, 84], num_classes=64, few_shot=True, rotations=False).to("cuda")
     else:
         raise ValueError
 
@@ -123,6 +126,16 @@ def load_model(method, model_name, n_way, n_shot, n_query, dataset_name, args, a
         save_path = f"{CUR_PATH}/checkpoints/{trained_dataset}/SimpleShot/{bb_model}/checkpoint.pth.tar"
         tmp = torch.load(save_path)
         model.load_state_dict(tmp["state_dict"])
+    elif "easy" in method:
+        models = []
+        for n in [f"mini1.pt{n_shot}", f"mini2.pt{n_shot}", f"mini3.pt{n_shot}"]:
+            save_path = f"{CUR_PATH}/checkpoints/{trained_dataset}/easy/{n}"
+            model.load_state_dict(torch.load(save_path, map_location=torch.device("cuda")))
+            model.cuda()
+            models.append(model)
+        model = models
+        # model.load_state_dict(torch.load(f"{CUR_PATH}/checkpoints/{trained_dataset}/easy/mini2.pt1", map_location=torch.device("cuda")))
+        # model.cuda()
     else:
         checkpoint_dir = '%s/checkpoints/%s/%s_%s' % (CUR_PATH, trained_dataset, model_name, method)
         if aug_used:

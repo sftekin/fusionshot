@@ -112,7 +112,7 @@ def plot_acc_div(ens_dict, save_extension=""):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='focal diversity pruning')
-    parser.add_argument('--dataset_name', default="CUB", choices=["CUB", "miniImagenet"])
+    parser.add_argument('--dataset_name', default="miniImagenet", choices=["CUB", "miniImagenet"])
     parser.add_argument("--n_query", default=15, type=int)
     parser.add_argument("--n_way", default=5, type=int)
     parser.add_argument("--n_shot", default=1, type=int)
@@ -120,7 +120,7 @@ if __name__ == '__main__':
                         help='Model name and backbone e.g. protonet_ResNet18', required=True)
     args = parser.parse_args()
     num_cpu = multiprocessing.cpu_count()
-    cls_name = "val"
+    cls_name = "novel"
 
     # perform ensemble pruning
     print(args.model_names)

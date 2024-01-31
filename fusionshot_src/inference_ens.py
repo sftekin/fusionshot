@@ -97,25 +97,82 @@ def plot_improvement(model_stats, method_names):
     plt.show()
 
 
+def calc_simple_ens(model_preds, labels, n_query, n_way):
+    import sys
+    sys.path.append("..")
+    from ens_pruning_src.ensemble_methods import voting
+
+    base_errors = np.stack([(mod_pred == labels).astype(int) for mod_pred in model_preds], axis=1)
+    model_preds = np.stack(model_preds, axis=1)
+
+    voting_preds = voting(model_preds, "plurality", n_query, n_way)
+    acc = []
+    for i in range(len(voting_preds)):
+        y = np.repeat(range(n_way), n_query)
+        acc.append(np.mean(voting_preds[i] == y) * 100)
+    acc_mean = np.mean(acc)
+    acc_std = np.std(acc)
+    conf = 1.96 * acc_std / np.sqrt(len(voting_preds))
+    print(f"Voting method acc: {acc_mean:.2f} +- {conf:.2f}")
+    vot_mean, vot_conf = acc_mean, conf
+
+    return vot_mean, vot_conf
+
+
+def calc_mean_perf(novel_logits, novel_data):
+    from scipy.special import softmax
+    mean_pred = np.mean([softmax(novel_logits[i], axis=1) for i in range(len(novel_logits))], axis=0)
+    mean_pred = mean_pred.argmax(axis=1)
+    y = novel_data[:, -1:].squeeze()
+    acc = np.mean(mean_pred == y) * 100
+    std = np.std(mean_pred == y)
+    conf = 1.96 * std / np.sqrt(len(mean_pred))
+    print(f"Simple mean Acc: {acc:.2f} +- {conf:.2f}")
+    return acc
+
+
+def plot_inf_scores(in_scores, model_names):
+    model_acc, fusion_mean, pul_acc, mean_acc = in_scores
+
+    fig, ax = plt.subplots()
+    x = list(range(len(model_acc)))
+    # ax.bar(x, model_acc, label="base models")
+    ax.bar(len(x) + 0, pul_acc, label="plurality")
+    ax.bar(len(x) + 1, mean_acc, label="average")
+    ax.bar(len(x) + 2, fusion_mean, label="fusionshot")
+    ax.legend()
+    # ax.set_ylim(45, 70)
+    plt.show()
+    print()
+
+
 def run(model_names):
     sv_path = f"{CUR_PATH}/ens_checkpoints/{dataset}/{'-'.join(model_names)}_{n_way}way_{n_shot}shot"
     sv_path = modify_save_path(sv_path)
     outfile = os.path.join(sv_path, f'best_model.tar')
 
-    model = MLP(len(model_names) * 5, [100, 100], 5)
-    tmp = torch.load(outfile, map_location=device)
-    model.load_state_dict(tmp["state"])
-
     novel_logits = load_logits(model_names, dataset=dataset, class_type="novel", nway=n_way, nshot=n_shot)
     novel_data = create_data(logits=novel_logits, n_query=n_query, n_way=n_way, shuffle=False)
 
+    mean_acc = calc_mean_perf(novel_logits, novel_data)
+
+    model_preds = [novel_logits[i].argmax(axis=1) for i in range(len(model_names))]
+    labels = novel_data[:, -1]
+    model_acc = [np.mean(pred == labels) * 100 for pred in model_preds]
+    pul_acc = calc_simple_ens(model_preds, labels, n_query, n_way)
+
+    model = MLP(len(model_names) * 5, [100, 100], 5)
+    tmp = torch.load(outfile)
+    model.load_state_dict(tmp["state"])
+
     model.to(device)
-    novel_loader = DataLoader(novel_data, batch_size=64, shuffle=False)
-    acc_mean, acc_std, logits, labels = test_loop(model, novel_loader, ret_logit=True, device=device)
-    ens_logits = logits[:, -5:]
-    ens_preds = ens_logits.argmax(axis=1)
-    conf = 1.96 * acc_std / np.sqrt(len(logits))
-    print(f"Ensemble acc: {acc_mean:.2f} +- {conf:.2f}")
+    model.eval()
+    novel_loader = DataLoader(novel_data, batch_size=64, shuffle=True)
+    fusion_mean, fusion_std = test_loop(model, novel_loader)
+    conf = 1.96 * fusion_std / np.sqrt(len(novel_loader))
+    print(f"Ensemble acc: {fusion_mean:.2f} +- {conf:.2f}")
+
+    return [model_acc, fusion_mean, pul_acc, mean_acc]
 
 
 if __name__ == '__main__':
@@ -123,7 +180,11 @@ if __name__ == '__main__':
     n_way = 5
     n_query = 15
     dataset = "miniImagenet"
-    device = "cpu"
+    device = "cuda"
 
-    all_names = ['protonet_ResNet18', "maml_approx_ResNet18", 'simpleshot_ResNet18', 'DeepEMD']
-    run(model_names=all_names)
+    # all_names = ["DeepEMD", 'simpleshot_ResNet18', "protonet_ResNet18", "maml_approx_ResNet18"]
+    all_names = ['simpleshot_ResNet10', 'simpleshot_ResNet18', 'simpleshot_ResNet34', 'simpleshot_DenseNet121']
+    inference_scores = run(model_names=all_names)
+    # plot_inf_scores(inference_scores, all_names)
+
+

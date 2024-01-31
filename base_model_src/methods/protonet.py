@@ -47,4 +47,4 @@ def euclidean_dist( x, y):
     x = x.unsqueeze(1).expand(n, m, d)
     y = y.unsqueeze(0).expand(n, m, d)
 
-    return torch.pow(x - y, 2).sum(2)
+    return torch.norm(x - y, dim=2, p=2)
