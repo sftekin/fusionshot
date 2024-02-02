@@ -18,7 +18,8 @@ def load_predictions(model_names, n_query, n_way, n_shot, class_name, dataset):
         else:
             method_name = model_n.split("_")[0]
 
-        with open(f"{MODEL_OUT_DIR}/{dataset}/model_outs/{method_name}/{model_n}_{class_name}_{n_way}way_{n_shot}shot.pkl", "rb") as f:
+        with open(f"{MODEL_OUT_DIR}/{dataset}/model_outs/{method_name}/"
+                  f"{model_n}_{class_name}_{n_way}way_{n_shot}shot.pkl", "rb") as f:
             results = pkl.load(f)
         pred = results["predicts"]
 

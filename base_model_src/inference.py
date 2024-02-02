@@ -195,7 +195,7 @@ def run(method, dataset_name, class_type, ep_num, model_name,
         # infer_args["novel_features"] = novel_features
 
     if "simpleshot" in method:
-        save_path = f"simple_shot_base_features_{method}_{model_name}.tar"
+        save_path = f"ss_features/simple_shot_base_features_{dataset_name}_{method}_{model_name}.tar"
         if os.path.exists(save_path):
             base_mean = torch.load(save_path)
         else:
@@ -221,18 +221,18 @@ def run(method, dataset_name, class_type, ep_num, model_name,
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='few-shot inference')
     parser.add_argument('--seed', default=50, type=int)
-    parser.add_argument('--dataset_name', default="miniImagenet", choices=["CUB", "miniImagenet"])
-    parser.add_argument('--method', default='simpleshot',
+    parser.add_argument('--dataset_name', default="CUB", choices=["CUB", "miniImagenet"])
+    parser.add_argument('--method', default='protonet',
                         choices=["maml_approx", "matchingnet", "protonet", "relationnet",
                                  "relationnet_softmax", "DeepEMD",
                                  "simpleshot", "easy"])
-    parser.add_argument('--model_name', default="Conv6", choices=['Conv4', 'Conv6', 'ResNet10', 'ResNet18',
+    parser.add_argument('--model_name', default="ResNet18", choices=['Conv4', 'Conv6', 'ResNet10', 'ResNet18',
                                                                      'ResNet34', "WideRes", "DenseNet121"])
     parser.add_argument('--class_type', default="novel", choices=["base", "val", "novel"])
     parser.add_argument("--n_query", default=15, type=int)
     parser.add_argument("--n_way", default=5, type=int)
-    parser.add_argument("--n_shot", default=1, type=int)
-    parser.add_argument('--ep_num', default=600, type=int)
+    parser.add_argument("--n_shot", default=5, type=int)
+    parser.add_argument('--ep_num', default=300, type=int)
     parser.add_argument('--aug_used', action='store_true', help='performed train augmentation')
     parser.add_argument('--cross', action='store_true')
 
