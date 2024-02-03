@@ -7,8 +7,8 @@ class TransformLoader:
     def __init__(self, image_size, augmentation=False):
         self.image_size = image_size
         self.norm_param = {
-            "mean": [0.49137255, 0.48235294, 0.44666667],
-            "std": [0.24705882, 0.24352941, 0.26156863]
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225]
         }
         self.jitter_param = {
             "Brightness": 0.4,
@@ -17,7 +17,7 @@ class TransformLoader:
         }
 
         if not augmentation:
-            self.transform_list = ['ToTensor', 'Resize', 'CenterCrop',  'Normalize']
+            self.transform_list = ['Resize', 'CenterCrop', 'ToTensor', 'Normalize']
         else:
             self.transform_list = ['RandomResizedCrop', 'RandomHorizontalFlip', 'ToTensor', 'Normalize']
 

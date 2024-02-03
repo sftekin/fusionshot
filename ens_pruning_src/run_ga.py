@@ -1,9 +1,9 @@
 import pygad
 import numpy as np
 import os
-from helper import load_predictions, calculate_errors
-from diversity_stats import calc_generalized_div
-from ensemble_methods import voting
+from ens_pruning_src.helper import load_predictions, calculate_errors
+from ens_pruning_src.diversity_stats import calc_generalized_div
+from ens_pruning_src.ensemble_methods import voting
 import time
 import argparse
 
@@ -48,7 +48,7 @@ def run(model_names, n_query, n_shot, n_way, dataset, weights, size_penalty):
             focal_div, acc_score = calc_div_acc(solution)
             score = focal_div * weights[0] + acc_score * weights[1]
             if size_penalty:
-                score -= 0.1 * sum(solution)/len(solution)
+                score -= 0.1 * sum(solution) / len(solution)
         return score
 
     ga_params = {
@@ -74,13 +74,14 @@ def run(model_names, n_query, n_shot, n_way, dataset, weights, size_penalty):
     start_time = time.time()
     ga_instance.run()
     end_time = time.time()
-    ga_instance.plot_fitness(ylabel="Score", title="", font_size=16)
+    # ga_instance.plot_fitness(ylabel="Score", title="", font_size=16)
 
     # solution, solution_fitness, solution_idx = ga_instance.best_solution()
 
+    topk = 10
     pop_fitness = ga_instance.cal_pop_fitness()
-    top_idx = pop_fitness.argsort()[-5:]
-    for i in range(5):
+    top_idx = pop_fitness.argsort()[-topk:]
+    for i in range(topk):
         sol = ga_instance.population[top_idx[i]]
         sol_div, sol_acc = calc_div_acc(sol)
         selected_models = [model_names[i] for i in range(len(model_names)) if sol[i]]
@@ -89,6 +90,11 @@ def run(model_names, n_query, n_shot, n_way, dataset, weights, size_penalty):
 
     print(f"Lasted {(end_time - start_time)}seconds")
     print(ga_params)
+
+    solution = ga_instance.population[top_idx[0]]
+    selected_models = [mn for i, mn in enumerate(model_names) if solution[i] == 1]
+    print(selected_models)
+    return selected_models
 
 
 if __name__ == '__main__':
@@ -106,5 +112,7 @@ if __name__ == '__main__':
 
     wgh = [args.focal_div_weight, args.acc_weight]  # div_weight, acc_weight
 
-    run(model_names=args.model_names, weights=wgh, dataset=args.dataset_name,
-        n_shot=args.n_shot, n_way=args.n_way, n_query=args.n_query, size_penalty=args.size_penalty)
+    run(model_names=["matchingnet_ResNet18", "protonet_Conv6", "protonet_ResNet18", "relationnet_Conv6",
+                     "relationnet_ResNet18", "maml_approx_Conv6", "maml_approx_ResNet18",
+                     "simpleshot_DenseNet121", "simpleshot_WideRes", "DeepEMD"], weights=wgh, dataset=args.dataset_name,
+        n_shot=args.n_shot, n_way=args.n_way, n_query=args.n_query, size_penalty=False)

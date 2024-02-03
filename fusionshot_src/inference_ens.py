@@ -183,7 +183,9 @@ if __name__ == '__main__':
     device = "cuda"
 
     # all_names = ["DeepEMD", 'simpleshot_ResNet18', "protonet_ResNet18", "maml_approx_ResNet18"]
-    all_names = ['simpleshot_ResNet10', 'simpleshot_ResNet18', 'simpleshot_ResNet34', 'simpleshot_DenseNet121']
+    all_names = ["matchingnet_Conv6", "matchingnet_ResNet18", "protonet_Conv6", "protonet_ResNet18",
+               "relationnet_Conv6", "relationnet_ResNet18", "maml_approx_Conv6",
+               "maml_approx_ResNet18", "simpleshot_DenseNet121", "DeepEMD"]
     inference_scores = run(model_names=all_names)
     # plot_inf_scores(inference_scores, all_names)
 

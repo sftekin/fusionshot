@@ -48,7 +48,7 @@ def prune_ensemble_sets(model_names, class_name, dataset, n_shot, n_way, n_query
     all_error_dict, all_error_arr = calculate_errors(predictions, pred_arr, n_query=n_query, n_way=n_way)
 
     ens_dict = {}
-    ens_sizes = np.arange(2, len(model_names))
+    ens_sizes = np.arange(2, len(model_names)+1)
     for j, ens_size in enumerate(ens_sizes):
         print(f"Ens size: {j} / {len(ens_sizes)}")
 
@@ -125,7 +125,9 @@ if __name__ == '__main__':
     # perform ensemble pruning
     print(args.model_names)
     start_time = time.time()
-    prune_ensemble_sets(model_names=args.model_names,
+    prune_ensemble_sets(model_names=["matchingnet_Conv6", "matchingnet_ResNet18", "protonet_Conv6", "protonet_ResNet18",
+                                     "relationnet_Conv6", "relationnet_ResNet18", "maml_approx_Conv6",
+                                     "maml_approx_ResNet18", "simpleshot_DenseNet121", "DeepEMD"],
                         class_name=cls_name,
                         dataset=args.dataset_name,
                         n_shot=args.n_shot,
