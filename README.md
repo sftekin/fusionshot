@@ -1,4 +1,4 @@
-# Ensemble Methods for Robust Few-Shot Learning
+# Robust Few-Shot Ensemble Learning with Focal Diversity-Based Pruning
 
 ![alt text](./ensemble.jpg)
 We present `FusionShot` a focal diversity optimized few-shot ensemble learning framework with three steps.
