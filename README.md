@@ -1,6 +1,6 @@
 # Robust Few-Shot Ensemble Learning with Focal Diversity-Based Pruning
 
-![alt text](./ensemble.jpg)
+![alt text](./main.jpg)
 We present `FusionShot` a focal diversity optimized few-shot ensemble learning framework with three steps.
 1) Obtain training and validation predictions for each base Few-shot Learning Model.
 2) Select the best ensemble set among the pool of Few-Shot Learners using Genetic Algorithm.
