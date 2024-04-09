@@ -48,7 +48,7 @@ def prune_ensemble_sets(model_names, class_name, dataset, n_shot, n_way, n_query
     all_error_dict, all_error_arr = calculate_errors(predictions, pred_arr, n_query=n_query, n_way=n_way)
 
     ens_dict = {}
-    ens_sizes = np.arange(2, len(model_names)+1)
+    ens_sizes = np.arange(2, len(model_names) + 1)
     for j, ens_size in enumerate(ens_sizes):
         print(f"Ens size: {j} / {len(ens_sizes)}")
 
@@ -79,7 +79,7 @@ def prune_ensemble_sets(model_names, class_name, dataset, n_shot, n_way, n_query
     return ens_dict
 
 
-def plot_acc_div(ens_dict, save_extension=""):
+def plot_acc_div(ens_dict,  best_name, best_val, save_extension=""):
     # plot acc vs div
     ens_fig_dir = f"{CUR_DIR}/figures/ens_analysis"
     if not os.path.exists(ens_fig_dir):
@@ -96,18 +96,23 @@ def plot_acc_div(ens_dict, save_extension=""):
     scalarmappaple.set_array(list(ens_dict.keys()))
     cbar = plt.colorbar(scalarmappaple)
     cbar.ax.tick_params(labelsize=14)
-
+    x1, x2 = ax.get_xlim()
+    ax.plot(np.linspace(x1-0.1, x2+0.1, 100), np.repeat(best_val, 100), '--', label=best_name, c='k', lw=2)
+    ax.set_xlim(x1, x2)
+    ax.set_ylim(48, 68)
     ax.set_axisbelow(True)
     ax.xaxis.grid(color='gray', linestyle='dashed')
     ax.yaxis.grid(color='gray', linestyle='dashed')
     ax.set_xlabel("Focal Diversity", fontsize=16)
-    ax.set_ylabel("Plurality Voting Accuracy (%)", fontsize=16)
+    ax.set_ylabel("Accuracy (%)", fontsize=16)
     ax.tick_params(axis="both", labelsize=16)
+    ax.legend(fontsize=16, loc="lower right")
+    plt.show()
 
-    # plt.suptitle(f"Ensemble Analysis, dataset={ds_name}")
-    save_path = os.path.join(ens_fig_dir, f"acc_div_{save_extension}.png")
-    plt.savefig(save_path, dpi=200, bbox_inches="tight")
-    print(f"Figure is saved under {save_path}")
+    # # plt.suptitle(f"Ensemble Analysis, dataset={ds_name}")
+    # save_path = os.path.join(ens_fig_dir, f"acc_div_{save_extension}.png")
+    # plt.savefig(save_path, dpi=200, bbox_inches="tight")
+    # print(f"Figure is saved under {save_path}")
 
 
 if __name__ == '__main__':
@@ -123,11 +128,11 @@ if __name__ == '__main__':
     cls_name = "novel"
 
     # perform ensemble pruning
-    print(args.model_names)
+    model_n = ["matchingnet_ResNet18", "protonet_ResNet18", "relationnet_ResNet18",
+               "maml_approx_ResNet18", "protonet_Conv6", "matchingnet_Conv6",
+               "maml_approx_Conv6", "simpleshot_ResNet18", "simpleshot_WideRes", "relationnet_Conv6", "DeepEMD"]
     start_time = time.time()
-    prune_ensemble_sets(model_names=["matchingnet_Conv6", "matchingnet_ResNet18", "protonet_Conv6", "protonet_ResNet18",
-                                     "relationnet_Conv6", "relationnet_ResNet18", "maml_approx_Conv6",
-                                     "maml_approx_ResNet18", "simpleshot_DenseNet121", "DeepEMD"],
+    prune_ensemble_sets(model_names=model_n,
                         class_name=cls_name,
                         dataset=args.dataset_name,
                         n_shot=args.n_shot,
@@ -138,8 +143,20 @@ if __name__ == '__main__':
     with open(f"ens_dict_{cls_name}.pkl", "rb") as f:
         ens_dict = pkl.load(f)
 
-    M = len(args.model_names)
-    print(f"M={M}, took {end_time - start_time} seconds")
+    M = len(model_n)
+    # print(f"M={M}, took {end_time - start_time} seconds")
+
+    predictions, pred_arr = load_predictions(model_names=model_n, n_query=args.n_query, n_shot=args.n_shot,
+                                             n_way=args.n_way, class_name=cls_name, dataset=args.dataset_name)
+    all_error_dict, all_error_arr = calculate_errors(predictions, pred_arr, n_query=args.n_query, n_way=args.n_way)
+
+    best_model_n, best_model_v = "", 0
+    for k, v in all_error_dict.items():
+        acc = np.mean(v) * 100
+        if acc >= best_model_v:
+            best_model_v = acc
+            best_model_n = k
+        print(k, acc)
 
     # plot results
-    plot_acc_div(ens_dict, save_extension=f"{M}")
+    plot_acc_div(ens_dict, best_model_n, best_model_v, save_extension=f"{M}")

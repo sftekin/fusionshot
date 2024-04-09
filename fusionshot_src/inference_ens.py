@@ -97,13 +97,22 @@ def plot_improvement(model_stats, method_names):
     plt.show()
 
 
-def calc_simple_ens(model_preds, labels, n_query, n_way):
+def calc_simple_ens(model_preds, labels, n_query, n_way, model_names):
     import sys
     sys.path.append("..")
     from ens_pruning_src.ensemble_methods import voting
 
     base_errors = np.stack([(mod_pred == labels).astype(int) for mod_pred in model_preds], axis=1)
     model_preds = np.stack(model_preds, axis=1)
+
+    for i in range(len(model_names)):
+        acc = []
+        step_size = n_query*n_way
+        for j in range(0, len(model_preds), step_size):
+            acc.append(np.mean(model_preds[j:j+step_size, i] == labels[j:j+step_size]) * 100)
+        acc_mean = np.mean(acc)
+        acc_std = np.std(acc)
+        print(model_names[i], acc_mean, 1.96 * acc_std / np.sqrt(600))
 
     voting_preds = voting(model_preds, "plurality", n_query, n_way)
     acc = []
@@ -130,7 +139,6 @@ def calc_mean_perf(novel_logits, novel_data):
     print(f"Simple mean Acc: {acc:.2f} +- {conf:.2f}")
     return acc
 
-
 def plot_inf_scores(in_scores, model_names):
     model_acc, fusion_mean, pul_acc, mean_acc = in_scores
 
@@ -151,15 +159,15 @@ def run(model_names):
     sv_path = modify_save_path(sv_path)
     outfile = os.path.join(sv_path, f'best_model.tar')
 
-    novel_logits = load_logits(model_names, dataset=dataset, class_type="novel", nway=n_way, nshot=n_shot)
-    novel_data = create_data(logits=novel_logits, n_query=n_query, n_way=n_way, shuffle=False)
+    novel_logits = load_logits(model_names, dataset=dataset, class_type="novel", nway=n_way, nshot=n_shot, ep_count=ep_count)
+    novel_data = create_data(logits=novel_logits, n_query=n_query, n_way=n_way, shuffle=False, ep_count=ep_count)
 
     mean_acc = calc_mean_perf(novel_logits, novel_data)
 
     model_preds = [novel_logits[i].argmax(axis=1) for i in range(len(model_names))]
     labels = novel_data[:, -1]
     model_acc = [np.mean(pred == labels) * 100 for pred in model_preds]
-    pul_acc = calc_simple_ens(model_preds, labels, n_query, n_way)
+    pul_acc = calc_simple_ens(model_preds, labels, n_query, n_way, model_names)
 
     model = MLP(len(model_names) * 5, [100, 100], 5)
     tmp = torch.load(outfile)
@@ -179,13 +187,17 @@ if __name__ == '__main__':
     n_shot = 1
     n_way = 5
     n_query = 15
-    dataset = "miniImagenet"
+    dataset = "CUB"
     device = "cuda"
+    ep_count=300
 
     # all_names = ["DeepEMD", 'simpleshot_ResNet18', "protonet_ResNet18", "maml_approx_ResNet18"]
-    all_names = ["matchingnet_Conv6", "matchingnet_ResNet18", "protonet_Conv6", "protonet_ResNet18",
-               "relationnet_Conv6", "relationnet_ResNet18", "maml_approx_Conv6",
-               "maml_approx_ResNet18", "simpleshot_DenseNet121", "DeepEMD"]
+    # all_names = ["maml_approx_ResNet18", 'matchingnet_ResNet18', "protonet_ResNet18", "relationnet_ResNet18"]
+    # all_names = ["matchingnet_Conv6", "matchingnet_ResNet18", "protonet_Conv6", "protonet_ResNet18",
+    #            "relationnet_Conv6", "relationnet_ResNet18", "maml_approx_Conv6",
+    #            "maml_approx_ResNet18", "simpleshot_DenseNet121", "DeepEMD"]
+    # all_names = ["DeepEMD", "simpleshot_ResNet18", "easy_ResNet18"]
+    all_names = ["simpleshot_WideRes", "simpleshot_DenseNet121", "simpleshot_ResNet18"]
     inference_scores = run(model_names=all_names)
     # plot_inf_scores(inference_scores, all_names)
 

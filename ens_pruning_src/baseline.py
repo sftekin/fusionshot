@@ -4,6 +4,8 @@ import argparse
 import numpy as np
 import itertools
 import pickle as pkl
+from ensemble_methods import ensemble_methods
+
 
 
 def prune_ensemble_sets(model_names, class_name, dataset, n_shot, n_way, n_query):
@@ -19,8 +21,10 @@ def prune_ensemble_sets(model_names, class_name, dataset, n_shot, n_way, n_query
             kappa_dict[key] = val
 
     ens_sizes = np.arange(2, len(model_names) + 1)
-    div_dict = {}
+    ens_dict = {}
     for j, ens_size in enumerate(ens_sizes):
+        print(f"{j}")
+        div_dict = {}
         combinations = list(itertools.combinations(range(len(model_names)), ens_size))
         for comb in combinations:
             mean_kappa = 0
@@ -30,7 +34,19 @@ def prune_ensemble_sets(model_names, class_name, dataset, n_shot, n_way, n_query
                 for i, sub_comb in enumerate(itertools.combinations(comb, 2)):
                     mean_kappa += kappa_dict[sub_comb]
                 mean_kappa /= (i + 1)
-            div_dict[comb] = mean_kappa
+
+            set_preds = pred_arr[:, comb]
+            ens_pred = ensemble_methods["voting"](set_preds, method="plurality", n_way=n_way, n_query=n_query)
+            y = np.tile(np.repeat(range(n_way), n_query), len(ens_pred))
+            ens_pred_flatten = ens_pred.flatten()
+            all_acc = np.mean(y == ens_pred_flatten) * 100
+
+            div_dict[comb] = [mean_kappa, all_acc]
+        print(f"{j} is finished")
+        ens_dict[ens_size] = {k: v for k, v in div_dict.items()}
+
+    with open(f"ens_dict_{cls_name}_kappa.pkl", "wb") as f:
+        pkl.dump(ens_dict, f)
 
     div_val = list(div_dict.values())
     div_key = list(div_dict.keys())
@@ -58,9 +74,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     cls_name = "novel"
 
-    m_names = ["matchingnet_Conv6", "matchingnet_ResNet18", "protonet_Conv6", "protonet_ResNet18",
-               "relationnet_Conv6", "relationnet_ResNet18", "maml_approx_Conv6",
-               "maml_approx_ResNet18", "simpleshot_DenseNet121", "DeepEMD"]
+    m_names = ["matchingnet_ResNet18", "protonet_ResNet18", "relationnet_ResNet18",
+               "maml_approx_ResNet18", "simpleshot_DenseNet121", "simpleshot_WideRes",
+               "simpleshot_ResNet18", "protonet_ResNet34", "protonet_Conv6", "DeepEMD"]
 
     kappa_list = prune_ensemble_sets(
         model_names=m_names,
@@ -70,26 +86,26 @@ if __name__ == '__main__':
         n_way=args.n_way,
         n_query=args.n_query)
 
-    with open(f"ens_dict_{cls_name}.pkl", "rb") as f:
-        ens_dict = pkl.load(f)
-
-    comb_names = []
-    scores = []
-    weights = np.array([0.5, 0.5])
-    for ens_size, comb_dict in ens_dict.items():
-        for comb, val in comb_dict.items():
-            comb_names.append(comb)
-            s = np.array([val[0], val[1] / 100])
-            scores.append(np.sum(s * weights))
-    comb_names = np.array(comb_names)
-    scores = np.array(scores)
-    idx = np.argsort(scores)
-    comb_names = comb_names[idx]
-    scores = scores[idx]
-
-    for comb, score in zip(comb_names[-10:], scores[-10:]):
-        print([m_names[k] for k in comb])
-        kp_idx = kappa_list[0].index(comb)
-        print(comb, score, f"kappa rank {kp_idx} kappa score {kappa_list[1][kp_idx]}")
-
-    print()
+    # with open(f"ens_dict_{cls_name}_kappa.pkl", "rb") as f:
+    #     ens_dict = pkl.load(f)
+    #
+    # comb_names = []
+    # scores = []
+    # weights = np.array([0.5, 0.5])
+    # for ens_size, comb_dict in ens_dict.items():
+    #     for comb, val in comb_dict.items():
+    #         comb_names.append(comb)
+    #         s = np.array([val[0], val[1] / 100])
+    #         scores.append(np.sum(s * weights))
+    # comb_names = np.array(comb_names)
+    # scores = np.array(scores)
+    # idx = np.argsort(scores)
+    # comb_names = comb_names[idx]
+    # scores = scores[idx]
+    #
+    # for comb, score in zip(comb_names[-10:], scores[-10:]):
+    #     print([m_names[k] for k in comb])
+    #     kp_idx = kappa_list[0].index(comb)
+    #     print(comb, score, f"kappa rank {kp_idx} kappa score {kappa_list[1][kp_idx]}")
+    #
+    # print()

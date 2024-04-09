@@ -114,7 +114,8 @@ def load_model(method, model_name, n_way, n_shot, n_query, dataset_name, args, a
         model = bb_mapper[bb_model](num_classes=num_classes, remove_linear=False)
         model = torch.nn.DataParallel(model).cuda()
     elif method == "easy":
-        model = ResNet12(64, [3, 84, 84], num_classes=64, few_shot=True, rotations=False).to("cuda")
+        num_classes = 64 if trained_dataset == "miniImagenet" else 100
+        model = ResNet12(64, [3, 84, 84], num_classes=num_classes, few_shot=True, rotations=False).to("cuda")
     else:
         raise ValueError
 
@@ -128,7 +129,8 @@ def load_model(method, model_name, n_way, n_shot, n_query, dataset_name, args, a
         model.load_state_dict(tmp["state_dict"])
     elif "easy" in method:
         models = []
-        for n in [f"mini1.pt{n_shot}", f"mini2.pt{n_shot}", f"mini3.pt{n_shot}"]:
+        ds_prefix = "mini" if trained_dataset == "miniImagenet" else "cubfs"
+        for n in [f"{ds_prefix}1.pt{n_shot}", f"{ds_prefix}2.pt{n_shot}", f"{ds_prefix}3.pt{n_shot}"]:
             save_path = f"{CUR_PATH}/checkpoints/{trained_dataset}/easy/{n}"
             model.load_state_dict(torch.load(save_path, map_location=torch.device("cuda")))
             model.cuda()

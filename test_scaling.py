@@ -38,13 +38,13 @@ def test_scale(model_names):
 
 
 if __name__ == '__main__':
-    exp_num = 3
+    exp_num = 5
     n_query = 15
     n_shot = 1
     n_way = 5
     dataset = "miniImagenet"
 
-    for exp_k in range(2, 5):
+    for exp_k in range(exp_num):
         time_arr = []
         acc_arr = []
         conf_arr = []
